@@ -515,9 +515,10 @@ export function CropWorkspace({
           type="button"
           className="crop-workspace__button crop-workspace__button--primary"
           onClick={handleAccept}
-          disabled={isExporting}
+          disabled={isExporting || !imageSize}
+          aria-busy={isExporting}
         >
-          {isResave ? 'OK → nadpisz' : 'OK → następne'}
+          {isExporting ? 'Zapisywanie…' : isResave ? 'OK → nadpisz' : 'OK → następne'}
         </button>
       </div>
     </div>

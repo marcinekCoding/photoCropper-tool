@@ -85,6 +85,17 @@ export function FolderPicker({ aspectRatio, onSelect, onBack }: FolderPickerProp
         zachowa własną rozdzielczość po wycięciu.
       </p>
 
+      <div className="info-card">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 16v-4M12 8h.01" />
+        </svg>
+        <p>
+          Wymagana przeglądarka <strong>Chrome</strong> lub <strong>Edge</strong> — zapis do
+          podfolderu <code>cropped/</code> działa tylko z File System Access API.
+        </p>
+      </div>
+
       <div className="action-row">
         <button type="button" className="secondary-button" onClick={onBack}>
           Wstecz
@@ -95,7 +106,24 @@ export function FolderPicker({ aspectRatio, onSelect, onBack }: FolderPickerProp
           onClick={handlePickFolder}
           disabled={loading}
         >
-          {loading ? 'Wczytywanie…' : 'Wybierz folder'}
+          {loading ? (
+            'Wczytywanie…'
+          ) : (
+            <>
+              <svg
+                viewBox="0 0 24 24"
+                width="18"
+                height="18"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden="true"
+              >
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+              </svg>
+              Wybierz folder
+            </>
+          )}
         </button>
       </div>
 
