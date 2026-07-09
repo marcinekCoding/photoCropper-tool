@@ -55,6 +55,19 @@ Celem było zbudowanie narzędzia, które:
 - Obróbka obrazu: HTML Canvas
 - File I/O: File System Access API
 
+## Publikacja (GitHub Pages)
+
+Strona: [https://marcinekcoding.github.io/photoCropper-tool/](https://marcinekcoding.github.io/photoCropper-tool/)
+
+Repozytorium publikuje **zbudowany folder `dist/`** przez GitHub Actions (nie surowe pliki z root).
+
+Po pushu na `main`:
+1. Wejdź w repo → **Settings → Pages**
+2. Ustaw **Source: GitHub Actions** (nie „Deploy from branch / root”)
+3. Poczekaj na zielony workflow **Deploy to GitHub Pages**
+
+W `vite.config.ts` musi być `base: '/photoCropper-tool/'` (nazwa repo).
+
 ## Uruchomienie lokalne
 
 ### Wymagania
