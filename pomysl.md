@@ -7,7 +7,7 @@
 
 ## Problem
 
-Masowe kadrowanie zdjęć do stałego wymiaru jest żmudne w zwykłych edytorach. Trzeba otwierać każde zdjęcie osobno, ustawiać kadrowanie ręcznie i zapisywać. Przy setkach zdjęć (np. materiał do montażu wideo, wstawianie w szablony) to zajmuje godziny.
+Masowe kadrowanie zdjęć do stałych proporcji jest żmudne w zwykłych edytorach. Trzeba otwierać każde zdjęcie osobno, ustawiać kadrowanie ręcznie i zapisywać. Przy setkach zdjęć (np. materiał do montażu wideo, wstawianie w szablony) to zajmuje godziny.
 
 ## Cel
 
@@ -19,7 +19,7 @@ Zdjęcia po przetworzeniu będą wykorzystywane do:
 - **montażu filmów** — jednolite kadry, stałe proporcje, szybkie wstawianie na timeline
 - **wstawiania w szablony** — np. ramki, kolaże, slajdy z wymaganym formatem
 
-Dlatego ważne są: powtarzalny wymiar, szybkość obiegu i przewidywalne centrowanie (twarz w tym samym miejscu w kadrze).
+Dlatego ważne są: powtarzalne proporcje, szybkość obiegu i przewidywalne centrowanie (twarz w tym samym miejscu w kadrze).
 
 ### Wymagania platformy
 
@@ -31,7 +31,7 @@ Dlatego ważne są: powtarzalny wymiar, szybkość obiegu i przewidywalne centro
 
 ## Główny przepływ (zrealizowany)
 
-1. **Wybór wymiaru** — graficzne karty presetów lub własny rozmiar przez przeciąganie krawędzi ramki.
+1. **Wybór formatu (proporcji)** — graficzne karty presetów lub własna proporcja przez przeciąganie krawędzi ramki.
 2. **Wybór folderu** — wczytanie wszystkich zdjęć JPG/PNG/WebP z wybranego folderu.
 3. **Kadrowanie** — kolejka zdjęć z podglądem dwupanelowym, propozycją algorytmu twarzy i ręczną korektą.
 4. **Eksport** — zapis do podfolderu `cropped/` w folderze źródłowym, te same nazwy plików.
@@ -54,14 +54,14 @@ Dlatego ważne są: powtarzalny wymiar, szybkość obiegu i przewidywalne centro
 ### MVP — zrealizowane ✅
 
 - [x] **Vite + React + TypeScript** — pełny stack (`App.tsx`, `main.tsx`, `package.json`)
-- [x] **3-krokowy przepływ:** wymiar → folder → kadrowanie (`useSession.ts`, wskaźnik kroków w nagłówku)
+- [x] **3-krokowy przepływ:** format → folder → kadrowanie (`useSession.ts`, wskaźnik kroków w nagłówku)
 - [x] **Graficzny wybór presetów** — karty wizualne z proporcjami (`DimensionPicker.tsx`):
-  - Portret (300×400, 3:4)
-  - Panorama (1920×1080, 16:9)
-  - Kwadrat (1:1, 1080×1080)
-  - Klasyczny (4:3, 1600×1200)
-  - Story (9:16, 1080×1920)
-- [x] **Własny wymiar — graficznie** — ramka z uchwytami N/S/E/W, przeciąganie krawędzi (bez pól tekstowych); zakres 100–4000 px
+  - Portret (3:4)
+  - Panorama (16:9)
+  - Kwadrat (1:1)
+  - Klasyczny (4:3)
+  - Story (9:16)
+- [x] **Własna proporcja — graficznie** — ramka z uchwytami N/S/E/W, przeciąganie krawędzi (bez pól tekstowych)
 - [x] **Wybór folderu źródłowego** — `showDirectoryPicker`, JPG/PNG/WebP (`FolderPicker.tsx`)
 - [x] **Interfejs dwupanelowy** — oryginał lewo, skadrowany podgląd prawo (`CropWorkspace.tsx`)
 - [x] **Przeciągalna ramka kadru na LEWYM panelu** — synchronizacja z podglądem po prawej
@@ -69,7 +69,7 @@ Dlatego ważne są: powtarzalny wymiar, szybkość obiegu i przewidywalne centro
 - [x] **Kolejka zdjęć z licznikiem** — np. `12 / 87 · zapisane: 11`
 - [x] **MediaPipe — auto-centrowanie twarzy** — tylko przesunięcie, **bez skalowania** (`faceDetection.ts`, `CropSession.tsx`)
 - [x] **Wiele twarzy** — próba zmieszczenia WSZYSTKICH twarzy w kadrze; żółta przerywana ramka + komunikat gdy się nie da (`proposeCropFromFaceBoxes`)
-- [x] **Powiększanie małych zdjęć** — `applyCropToCanvas` zawsze renderuje do docelowego wymiaru (upscale przy eksporcie)
+- [x] **Eksport w natywnej rozdzielczości** — `applyCropToCanvas` wycina fragment 1:1 bez skalowania do sztywnych px; rozmiar wyjściowy zależy od źródła (`getOutputPixelSize`)
 - [x] **Eksport do `cropped/`** — podfolder w folderze źródłowym, te same nazwy plików (`export.ts`)
 - [x] **Skróty klawiszowe:**
   - `Enter` / `Spacja` — zapisz i następne
@@ -90,7 +90,6 @@ Dlatego ważne są: powtarzalny wymiar, szybkość obiegu i przewidywalne centro
 - [ ] **Konfigurowalna nazwa podfolderu** wyjściowego (obecnie stałe `cropped/`)
 - [ ] **Eksport z ustawioną jakością / formatem**
 - [ ] **Metadane eksportu** (numeracja, prefiks plików)
-- [ ] **Lepszy upscale** — opcjonalnie algorytm wykraczający poza interpolację canvas
 
 ---
 
@@ -101,10 +100,10 @@ Krótka historia decyzji i zmian w trakcie rozmowy / implementacji:
 1. **Pomysł początkowy** — wybór wymiaru, masowy folder, klikanie przez kolejkę, algorytm twarzy jako propozycja (ręczna korekta zawsze).
 2. **Eksport do podfolderu** — `cropped/` w folderze źródłowym, oryginały nietknięte, te same nazwy.
 3. **Twarz: tylko centrowanie** — bez skalowania kadru do twarzy; zoom tylko ręcznie.
-4. **Małe zdjęcia** — upscale do wybranego wymiaru przy zapisie (użytkownik i tak widzi każde zdjęcie).
+4. **Zmiana modelu eksportu** — tylko proporcje, bez wymuszania px; każde zdjęcie zachowuje natywną rozdzielczość wyciętego fragmentu (bez upscale).
 5. **UI dwupanelowy** — oryginał lewo, skadrowany wynik prawo; pan + zoom na prawym panelu.
 6. **Graficzne presety** — karty wizualne z proporcjami (nie same liczby w liście).
-7. **Własny wymiar graficznie** — przeciąganie krawędzi ramki (N/S/E/W), nie inputy tekstowe.
+7. **Własna proporcja graficznie** — przeciąganie krawędzi ramki (N/S/E/W), nie inputy tekstowe.
 8. **Wiele twarzy** — próba zmieszczenia wszystkich; żółta przerywana ramka ostrzegawcza gdy się nie da.
 9. **Przeciągalna ramka na lewym panelu** — przesuwanie kadru na oryginale synchronizuje podgląd po prawej.
 10. **Cofnij + nadpisanie** — powrót do poprzedniego zdjęcia; ponowny zapis nadpisuje plik w `cropped/`.
@@ -114,9 +113,9 @@ Krótka historia decyzji i zmian w trakcie rozmowy / implementacji:
 ## Przepływ użytkownika (aktualny)
 
 ```
-[Krok 1: Wybór wymiaru]
+[Krok 1: Wybór formatu]
    → kliknij kartę presetu (Portret / Panorama / Kwadrat / Klasyczny / Story)
-   LUB przeciągnij krawędzie ramki własnego wymiaru → „Użyj tego wymiaru”
+   LUB przeciągnij krawędzie ramki własnej proporcji → „Użyj tej proporcji”
         ↓
 [Krok 2: Wybór folderu]
    → Chrome/Edge: showDirectoryPicker (readwrite)
@@ -172,16 +171,16 @@ Krótka historia decyzji i zmian w trakcie rozmowy / implementacji:
                         [ OK → następne ]
 ```
 
-### Krok 1 — wybór wymiaru (`DimensionPicker.tsx`)
+### Krok 1 — wybór formatu (`DimensionPicker.tsx`)
 
-- Siatka kart presetów z kształtem proporcjonalnym, tytułem i rozmiarem w px.
-- Sekcja „Lub własny wymiar” — interaktywna ramka z uchwytami na krawędziach (N, S, E, W).
-- Wyświetlanie bieżącego rozmiaru na żywo; przycisk „Użyj tego wymiaru”.
+- Siatka kart presetów z kształtem proporcjonalnym, tytułem i zapisem proporcji (np. 3:4).
+- Sekcja „Lub własna proporcja” — interaktywna ramka z uchwytami na krawędziach (N, S, E, W).
+- Wyświetlanie bieżącej proporcji na żywo; przycisk „Użyj tej proporcji”.
 
 ### Krok 3 — kadrowanie (`CropWorkspace.tsx`)
 
 - **Panel lewy:** pełny obraz + overlay ramki zsynchronizowany z kadrem; przeciąganie przesuwa kadr.
-- **Panel prawy:** canvas z podglądem wyniku; przeciąganie = pan, kółko = zoom.
+- **Panel prawy:** canvas z podglądem wyniku + dynamiczny rozmiar wyjściowy w px; przeciąganie = pan, kółko = zoom.
 - **Ostrzeżenie multi-face:** żółta przerywana ramka + tekst „Nie wszystkie twarze mieszczą się w kadrze”.
 - Proporcje kadru wyjściowego **stałe** przez całą sesję — zoom zmienia powiększenie wewnątrz kadru, nie proporcje ramki.
 
@@ -191,7 +190,7 @@ Krótka historia decyzji i zmian w trakcie rozmowy / implementacji:
 
 **Biblioteka:** MediaPipe Face Detection (`@mediapipe/face_detection`), model `short`, WASM z `/mediapipe/face_detection/`.
 
-**Zasada: centruj, nie skaluj.** Kadr ma stały wymiar sesji — algorytm tylko przesuwa `offsetX`/`offsetY`, `scale` pozostaje 1 (chyba że użytkownik zoomuje ręcznie).
+**Zasada: centruj, nie skaluj.** Kadr ma stałe proporcje sesji — algorytm tylko przesuwa `offsetX`/`offsetY`, `scale` pozostaje 1 (chyba że użytkownik zoomuje ręcznie).
 
 **Logika (`faceDetection.ts` → `proposeCropFromFaceBoxes`):**
 
@@ -209,13 +208,14 @@ Krótka historia decyzji i zmian w trakcie rozmowy / implementacji:
 
 ---
 
-## Zdjęcia mniejsze niż wybrany kadr
+## Eksport — rozdzielczość i jakość
 
-Każde zdjęcie przechodzi **ręczny przegląd**. Gdy źródło jest mniejsze niż docelowy kadr:
+Sesja wymusza tylko **proporcje** kadru, nie rozdzielczość w pikselach.
 
-1. Wycięty fragment jest **skalowany w górę** do wybranego wymiaru (`applyCropToCanvas` → `canvas.width/height = target`).
-2. Podgląd (panel prawy) pokazuje finalny efekt przed zapisem.
-3. Upscale to osobna operacja od algorytmu twarzy — twarz nadal tylko centruje, nie zoomuje.
+- `applyCropToCanvas` tworzy canvas o rozmiarze wyciętego fragmentu źródła (1:1, bez interpolacji).
+- `imageSmoothingEnabled = false` — brak niepotrzebnego skalowania.
+- Każde zdjęcie może mieć inny rozmiar px przy tej samej proporcji (zależy od rozdzielczości źródła i zoomu).
+- UI pokazuje bieżący rozmiar wyjściowy: np. „Skadrowane · 2847 × 3796 px” (`getOutputPixelSize`).
 
 ---
 
@@ -267,7 +267,7 @@ npm run preview
 | `src/components/CropSession.tsx` | MediaPipe, eksport per zdjęcie |
 | `src/components/CropWorkspace/CropWorkspace.tsx` | UI dwupanelowy, skróty, drag |
 | `src/lib/faceDetection.ts` | MediaPipe, multi-face logic |
-| `src/lib/crop.ts` | Matematyka kadru, canvas, upscale |
+| `src/lib/crop.ts` | Matematyka kadru, canvas, natywna rozdzielczość wyjścia |
 | `src/lib/export.ts` | Zapis do `cropped/` |
 | `src/types.ts` | Presety, typy sesji, rozszerzenia plików |
 
@@ -277,15 +277,14 @@ npm run preview
 
 - **Prywatność:** zdjęcia nie opuszczają urządzenia. ✅
 - **Szybkość:** przejście OK → następne bez zbędnych opóźnień (model ładowany raz). ✅
-- **Powtarzalność:** ten sam wymiar i logika kadru dla całej sesji. ✅
+- **Powtarzalność:** te same proporcje i logika kadru dla całej sesji. ✅
 
 ---
 
 ## Otwarte kwestie
 
 - Konkretne presety pod konkretny szablon montażowy — obecnie uniwersalne 5 formatów + własny.
-- Nazwa podfolderu — stała `cropped/` czy z sufiksem wymiaru (np. `cropped_300x400/`)?
-- Jakość upscale — obecnie `imageSmoothingQuality: 'high'` na canvas; czy wystarczy?
+- Nazwa podfolderu — stała `cropped/` czy z sufiksem proporcji (np. `cropped_3x4/`)?
 
 ---
 
@@ -293,10 +292,10 @@ npm run preview
 
 - **Data utworzenia pomysłu:** 2026-07-09
 - **Data ukończenia MVP:** 2026-07-09
-- **Decyzje:** web, offline, presety graficzne + własny wymiar przez ramkę, twarz = propozycja (ręczna korekta zawsze)
+- **Decyzje:** web, offline, presety graficzne + własna proporcja przez ramkę, twarz = propozycja (ręczna korekta zawsze)
 - **Use case:** montaż wideo + szablony
-- **Eksport:** `cropped/` w folderze źródłowym, te same nazwy plików
+- **Eksport:** `cropped/` w folderze źródłowym, te same nazwy plików, natywna rozdzielczość wycięcia
 - **Twarz:** auto centruje (1 twarz) lub mieści wszystkie (wiele); ręcznie — pan/zoom na obu panelach
 - **UI:** oryginał lewo (przeciągalna ramka), skadrowany podgląd prawo (pan + zoom)
-- **Małe zdjęcia:** upscale do wybranego wymiaru przy zapisie
+- **Jakość:** brak wymuszania px — tylko proporcje, bez upscale przy eksporcie
 - **Cofnij:** Backspace lub przycisk; ponowny zapis nadpisuje plik w `cropped/`

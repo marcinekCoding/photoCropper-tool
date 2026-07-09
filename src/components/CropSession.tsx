@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { CropDimensions, QueuedImage, SavedCropsMap } from '../types';
+import type { CropAspectRatio, QueuedImage, SavedCropsMap } from '../types';
+import { aspectToRatioDimensions, formatAspectRatio } from '../types';
 import type { CropState } from '../lib/crop';
 import { exportCroppedImage } from '../lib/export';
 import { detectFaceBoxes, initFaceDetection, proposeCropFromFaceBoxes } from '../lib/faceDetection';
@@ -7,7 +8,7 @@ import type { MultiFaceStatus } from '../lib/faceDetection';
 import { CropWorkspace } from './CropWorkspace';
 
 interface CropSessionProps {
-  dimensions: CropDimensions;
+  aspectRatio: CropAspectRatio;
   directoryHandle: FileSystemDirectoryHandle;
   queue: QueuedImage[];
   currentIndex: number;
@@ -39,7 +40,7 @@ function loadImageFromFile(file: File): Promise<HTMLImageElement> {
 }
 
 export function CropSession({
-  dimensions,
+  aspectRatio,
   directoryHandle,
   queue,
   currentIndex,
@@ -52,6 +53,7 @@ export function CropSession({
   onChangeFolder,
 }: CropSessionProps) {
   const currentImage = queue[currentIndex];
+  const ratioDimensions = aspectToRatioDimensions(aspectRatio);
   const [initialCropState, setInitialCropState] = useState<CropState | undefined>();
   const [multiFaceStatus, setMultiFaceStatus] = useState<MultiFaceStatus>('none');
   const [isExporting, setIsExporting] = useState(false);
@@ -93,7 +95,7 @@ export function CropSession({
         const proposal = proposeCropFromFaceBoxes(
           img.naturalWidth,
           img.naturalHeight,
-          { width: dimensions.width, height: dimensions.height },
+          ratioDimensions,
           faceBoxes,
         );
 
@@ -112,7 +114,7 @@ export function CropSession({
     return () => {
       cancelled = true;
     };
-  }, [currentImage, dimensions.height, dimensions.width, savedCrops]);
+  }, [currentImage, aspectRatio.ratioW, aspectRatio.ratioH, savedCrops]);
 
   const handleAccept = useCallback(
     async (cropState: CropState) => {
@@ -127,7 +129,7 @@ export function CropSession({
         await exportCroppedImage({
           directoryHandle,
           fileName: currentImage.name,
-          dimensions,
+          aspectRatio,
           cropState,
           sourceFile: currentImage.file,
         });
@@ -138,7 +140,7 @@ export function CropSession({
         setIsExporting(false);
       }
     },
-    [currentImage, dimensions, directoryHandle, isExporting, onAccept],
+    [currentImage, aspectRatio, directoryHandle, isExporting, onAccept],
   );
 
   if (!currentImage) {
@@ -165,7 +167,7 @@ export function CropSession({
       <header className="crop-session__header">
         <h2>Krok 3: Kadrowanie</h2>
         <p>
-          {dimensions.label} ({dimensions.width} × {dimensions.height} px) · folder:{' '}
+          {aspectRatio.label} ({formatAspectRatio(aspectRatio.ratioW, aspectRatio.ratioH)}) · folder:{' '}
           {directoryHandle.name} · zapisane: {savedCount}
         </p>
       </header>
@@ -175,7 +177,7 @@ export function CropSession({
       <CropWorkspace
         key={`${currentIndex}-${currentImage.name}`}
         image={currentImage.file}
-        targetDimensions={{ width: dimensions.width, height: dimensions.height }}
+        targetDimensions={ratioDimensions}
         initialCropState={initialCropState}
         multiFaceStatus={multiFaceStatus}
         onAccept={handleAccept}

@@ -12,6 +12,7 @@ import {
   computeInitialCrop,
   cropRectToDisplayRect,
   getCropRect,
+  getOutputPixelSize,
   computeImageDisplayLayout,
   displayDeltaToSourceDelta,
   clampScale,
@@ -396,6 +397,15 @@ export function CropWorkspace({
 
   const showFaceWarning = multiFaceStatus === 'warning';
 
+  const outputSize =
+    imageSize &&
+    getOutputPixelSize(
+      imageSize.width,
+      imageSize.height,
+      targetDimensions,
+      cropState,
+    );
+
   return (
     <div className="crop-workspace">
       <div className="crop-workspace__panels">
@@ -438,7 +448,15 @@ export function CropWorkspace({
         </section>
 
         <section className="crop-workspace__panel">
-          <h2 className="crop-workspace__panel-title">Skadrowane</h2>
+          <h2 className="crop-workspace__panel-title">
+            Skadrowane
+            {outputSize && (
+              <span className="crop-workspace__output-size">
+                {' '}
+                · {outputSize.width} × {outputSize.height} px
+              </span>
+            )}
+          </h2>
           <div
             ref={rightContainerRef}
             className={`crop-workspace__viewport crop-workspace__viewport--interactive${

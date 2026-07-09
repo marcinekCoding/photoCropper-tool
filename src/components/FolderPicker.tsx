@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import type { CropDimensions, QueuedImage } from '../types';
-import { isSupportedImageFile } from '../types';
+import type { CropAspectRatio, QueuedImage } from '../types';
+import { formatAspectRatio, isSupportedImageFile } from '../types';
 
 interface FolderPickerProps {
-  dimensions: CropDimensions;
+  aspectRatio: CropAspectRatio;
   onSelect: (directoryHandle: FileSystemDirectoryHandle, queue: QueuedImage[]) => void;
   onBack: () => void;
 }
@@ -35,7 +35,7 @@ async function collectImagesFromDirectory(
   return queue;
 }
 
-export function FolderPicker({ dimensions, onSelect, onBack }: FolderPickerProps) {
+export function FolderPicker({ aspectRatio, onSelect, onBack }: FolderPickerProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,11 +77,12 @@ export function FolderPicker({ dimensions, onSelect, onBack }: FolderPickerProps
     <section className="step-panel">
       <h2>Krok 2: Wybierz folder ze zdjęciami</h2>
       <p className="step-description">
-        Wybrany wymiar: <strong>{dimensions.label}</strong> ({dimensions.width} ×{' '}
-        {dimensions.height} px)
+        Wybrany format: <strong>{aspectRatio.label}</strong> (
+        {formatAspectRatio(aspectRatio.ratioW, aspectRatio.ratioH)})
       </p>
       <p className="step-description">
-        Wczytane zostaną wszystkie pliki JPG, PNG i WebP z wybranego folderu.
+        Wczytane zostaną wszystkie pliki JPG, PNG i WebP z wybranego folderu. Każde zdjęcie
+        zachowa własną rozdzielczość po wycięciu.
       </p>
 
       <div className="action-row">

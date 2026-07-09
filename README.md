@@ -5,7 +5,7 @@ Aplikacja działa lokalnie w przeglądarce (Chrome/Edge), bez wysyłania zdjęć
 
 ## TL;DR
 
-- Batch crop zdjęć w 3 krokach: wymiar -> folder -> kadrowanie
+- Batch crop zdjęć w 3 krokach: format (proporcje) -> folder -> kadrowanie
 - AI face detection (MediaPipe) do automatycznej propozycji kadru
 - Obsługa wielu twarzy + ostrzeżenie, gdy nie da się zmieścić wszystkich
 - Eksport do `cropped/` z zachowaniem nazw plików
@@ -22,9 +22,10 @@ Celem było zbudowanie narzędzia, które:
 
 ## Kluczowe funkcje
 
-### 1) Wybór wymiaru (UX-first)
-- Graficzne karty presetów proporcji (Portret, Panorama, Kwadrat, Klasyczny, Story)
-- Własny wymiar przez interaktywną ramkę (drag krawędzi N/S/E/W)
+### 1) Wybór formatu (UX-first)
+- Graficzne karty presetów proporcji (Portret 3:4, Panorama 16:9, Kwadrat 1:1, Klasyczny 4:3, Story 9:16)
+- Własna proporcja przez interaktywną ramkę (drag krawędzi N/S/E/W)
+- **Bez wymuszania rozdzielczości w px** — każde zdjęcie zachowuje natywną rozdzielczość wyciętego fragmentu
 
 ### 2) Tryb batch
 - Wybór folderu źródłowego
@@ -91,13 +92,14 @@ npm run preview
 
 ## Przepływ użytkownika
 
-1. Wybór wymiaru (preset lub własny)
+1. Wybór formatu / proporcji (preset lub własny)
 2. Wybór folderu ze zdjęciami
 3. Dla każdego zdjęcia:
    - auto-propozycja kadru,
    - ręczna korekta (pan/zoom, przeciąganie ramki),
+   - podgląd rozdzielczości wyjściowej w px (zależnej od źródła),
    - zapis / pominięcie / cofnięcie
-4. Eksport do `cropped/`
+4. Eksport do `cropped/` w natywnej rozdzielczości wyciętego fragmentu
 
 ## Architektura (skrót)
 
@@ -122,6 +124,7 @@ src/
 - Offline-first: prywatność i brak kosztów backendu
 - Human-in-the-loop: AI proponuje, użytkownik zatwierdza
 - Spójność ponad "magiczne" auto: stałe proporcje, przewidywalne zachowanie
+- Zachowanie jakości: eksport bez skalowania do sztywnych pikseli
 - Czytelny UX: dwupanelowy podgląd i szybkie skróty
 
 ## Ograniczenia / TODO

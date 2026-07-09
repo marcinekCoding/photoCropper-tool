@@ -1,10 +1,11 @@
-import type { CropDimensions, CropState } from '../types';
+import type { CropAspectRatio, CropState } from '../types';
+import { aspectToRatioDimensions } from '../types';
 import { applyCropToCanvas } from './crop.ts';
 
 export interface ExportOptions {
   directoryHandle: FileSystemDirectoryHandle;
   fileName: string;
-  dimensions: CropDimensions;
+  aspectRatio: CropAspectRatio;
   cropState: CropState;
   sourceFile: File;
   outputSubfolder?: string;
@@ -18,7 +19,7 @@ export interface AcceptedCrop {
 
 export interface ExportSessionOptions {
   directoryHandle: FileSystemDirectoryHandle;
-  dimensions: CropDimensions;
+  aspectRatio: CropAspectRatio;
   accepted: AcceptedCrop[];
   outputSubfolder?: string;
 }
@@ -102,14 +103,18 @@ export async function exportCroppedImage(options: ExportOptions): Promise<void> 
   const {
     directoryHandle,
     fileName,
-    dimensions,
+    aspectRatio,
     cropState,
     sourceFile,
     outputSubfolder = 'cropped',
   } = options;
 
   const image = await loadImageFromFile(sourceFile);
-  const canvas = applyCropToCanvas(image, cropState, dimensions);
+  const canvas = applyCropToCanvas(
+    image,
+    cropState,
+    aspectToRatioDimensions(aspectRatio),
+  );
   const blob = await canvasToBlob(canvas, resolveMimeType(sourceFile));
 
   await saveCroppedImage(directoryHandle, outputSubfolder, fileName, blob);
@@ -117,13 +122,13 @@ export async function exportCroppedImage(options: ExportOptions): Promise<void> 
 
 /** Save all accepted crops from a session, preserving original filenames. */
 export async function exportSession(options: ExportSessionOptions): Promise<void> {
-  const { directoryHandle, dimensions, accepted, outputSubfolder = 'cropped' } = options;
+  const { directoryHandle, aspectRatio, accepted, outputSubfolder = 'cropped' } = options;
 
   for (const item of accepted) {
     await exportCroppedImage({
       directoryHandle,
       fileName: item.fileName,
-      dimensions,
+      aspectRatio,
       cropState: item.cropState,
       sourceFile: item.sourceFile,
       outputSubfolder,

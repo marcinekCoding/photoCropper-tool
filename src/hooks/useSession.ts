@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
-import type { AppStep, CropDimensions, CropState, QueuedImage, SessionState } from '../types';
+import type { AppStep, CropAspectRatio, CropState, QueuedImage, SessionState } from '../types';
 
 const initialState: SessionState = {
   step: 'dimensions',
-  dimensions: null,
+  aspectRatio: null,
   directoryHandle: null,
   queue: [],
   currentIndex: 0,
@@ -14,10 +14,10 @@ const initialState: SessionState = {
 export function useSession() {
   const [state, setState] = useState<SessionState>(initialState);
 
-  const setDimensions = useCallback((dimensions: CropDimensions) => {
+  const setAspectRatio = useCallback((aspectRatio: CropAspectRatio) => {
     setState((prev) => ({
       ...prev,
-      dimensions,
+      aspectRatio,
       step: 'folder',
     }));
   }, []);
@@ -86,7 +86,7 @@ export function useSession() {
     state,
     currentImage,
     isComplete,
-    setDimensions,
+    setAspectRatio,
     setFolder,
     goToStep,
     acceptCurrent,

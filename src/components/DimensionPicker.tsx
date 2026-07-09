@@ -1,201 +1,175 @@
 import { useCallback, useRef, useState } from 'react';
-import type { CropDimensions } from '../types';
-import { DIMENSION_PRESETS } from '../types';
+import type { CropAspectRatio } from '../types';
+import { ASPECT_PRESETS, formatAspectRatio } from '../types';
 
 interface DimensionPickerProps {
-  onSelect: (dimensions: CropDimensions) => void;
+  onSelect: (aspectRatio: CropAspectRatio) => void;
 }
 
-const PRESET_HINTS: Record<string, { title: string; subtitle: string }> = {
-  '300×400': { title: 'Portret', subtitle: '3:4' },
-  '1920×1080': { title: 'Panorama', subtitle: '16:9' },
-  '1:1': { title: 'Kwadrat', subtitle: '1:1' },
-  '4:3': { title: 'Klasyczny', subtitle: '4:3' },
-  '9:16': { title: 'Story', subtitle: '9:16' },
-};
+const MIN_RATIO = 1;
+const MAX_RATIO = 32;
+const MIN_VISUAL = 56;
+const MAX_VISUAL_W = 300;
+const MAX_VISUAL_H = 210;
 
-const MIN_DIMENSION = 100;
-const MAX_DIMENSION = 4000;
-const PREVIEW_MAX_WIDTH = 280;
-const PREVIEW_MAX_HEIGHT = 200;
-const DRAG_SENSITIVITY = (MAX_DIMENSION - MIN_DIMENSION) / 200;
-
-type FrameEdge = 'n' | 's' | 'e' | 'w';
+interface VisualSize {
+  width: number;
+  height: number;
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function getVisualFrameSize(width: number, height: number): { visualWidth: number; visualHeight: number } {
-  const scale = Math.min(PREVIEW_MAX_WIDTH / width, PREVIEW_MAX_HEIGHT / height);
+function gcd(a: number, b: number): number {
+  let x = Math.abs(Math.round(a));
+  let y = Math.abs(Math.round(b));
+  while (y !== 0) {
+    const t = y;
+    y = x % y;
+    x = t;
+  }
+  return x || 1;
+}
+
+/** Najbliższa "ładna" proporcja (małe liczby całkowite) dla dowolnego prostokąta. */
+function approximateRatio(width: number, height: number): { rw: number; rh: number } {
+  const target = width / height;
+  let best = { rw: 1, rh: 1, err: Math.abs(target - 1) };
+
+  for (let rh = 1; rh <= MAX_RATIO; rh++) {
+    const rw = clamp(Math.round(target * rh), MIN_RATIO, MAX_RATIO);
+    const err = Math.abs(target - rw / rh);
+    if (err < best.err - 1e-9) {
+      best = { rw, rh, err };
+    }
+  }
+
+  const g = gcd(best.rw, best.rh);
+  return { rw: best.rw / g, rh: best.rh / g };
+}
+
+/** Rozmiar podglądu ramki dla danej proporcji. */
+function ratioToVisual(rw: number, rh: number): VisualSize {
+  const scale = Math.min(MAX_VISUAL_W / rw, MAX_VISUAL_H / rh);
   return {
-    visualWidth: width * scale,
-    visualHeight: height * scale,
+    width: Math.max(MIN_VISUAL, rw * scale),
+    height: Math.max(MIN_VISUAL, rh * scale),
   };
 }
 
-function PresetShape({ width, height }: { width: number; height: number }) {
-  const isLandscape = width >= height;
+function PresetShape({ ratioW, ratioH }: { ratioW: number; ratioH: number }) {
+  const isLandscape = ratioW >= ratioH;
 
   return (
     <div className="preset-visual" aria-hidden="true">
       <div
         className={`preset-shape ${isLandscape ? 'preset-shape--landscape' : 'preset-shape--portrait'}`}
-        style={{ aspectRatio: `${width} / ${height}` }}
+        style={{ aspectRatio: `${ratioW} / ${ratioH}` }}
       />
     </div>
   );
 }
 
-interface ResizableFrameProps {
-  width: number;
-  height: number;
-  onResizeStart: () => void;
-  onResize: (edge: FrameEdge, deltaX: number, deltaY: number) => void;
-  onResizeEnd: () => void;
-  isDragging: boolean;
-}
+export function DimensionPicker({ onSelect }: DimensionPickerProps) {
+  const [ratioW, setRatioW] = useState(4);
+  const [ratioH, setRatioH] = useState(3);
+  const [visual, setVisual] = useState<VisualSize>(() => ratioToVisual(4, 3));
+  const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef<{
+    startX: number;
+    startY: number;
+    startWidth: number;
+    startHeight: number;
+  } | null>(null);
 
-function ResizableFrame({ width, height, onResizeStart, onResize, onResizeEnd, isDragging }: ResizableFrameProps) {
-  const dragRef = useRef<{ edge: FrameEdge; startX: number; startY: number } | null>(null);
-  const { visualWidth, visualHeight } = getVisualFrameSize(width, height);
+  const applyVisual = useCallback((width: number, height: number) => {
+    const w = clamp(width, MIN_VISUAL, MAX_VISUAL_W);
+    const h = clamp(height, MIN_VISUAL, MAX_VISUAL_H);
+    setVisual({ width: w, height: h });
+    const { rw, rh } = approximateRatio(w, h);
+    setRatioW(rw);
+    setRatioH(rh);
+    setSelectedLabel(null);
+  }, []);
 
-  const handlePointerDown = useCallback(
-    (edge: FrameEdge) => (event: React.PointerEvent<HTMLDivElement>) => {
+  const handleCornerPointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
       event.preventDefault();
       event.stopPropagation();
       event.currentTarget.setPointerCapture(event.pointerId);
-      dragRef.current = { edge, startX: event.clientX, startY: event.clientY };
-      onResizeStart();
+      dragRef.current = {
+        startX: event.clientX,
+        startY: event.clientY,
+        startWidth: visual.width,
+        startHeight: visual.height,
+      };
+      setIsDragging(true);
     },
-    [onResizeStart],
+    [visual],
   );
 
-  const handlePointerMove = useCallback(
+  const handleCornerPointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (!dragRef.current) return;
-      const { edge, startX, startY } = dragRef.current;
-      onResize(edge, event.clientX - startX, event.clientY - startY);
+      const { startX, startY, startWidth, startHeight } = dragRef.current;
+      applyVisual(
+        startWidth + (event.clientX - startX),
+        startHeight + (event.clientY - startY),
+      );
     },
-    [onResize],
+    [applyVisual],
   );
 
-  const handlePointerUp = useCallback(
+  const handleCornerPointerUp = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (!dragRef.current) return;
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
       dragRef.current = null;
-      onResizeEnd();
+      setIsDragging(false);
     },
-    [onResizeEnd],
+    [],
   );
 
-  const edges: { edge: FrameEdge; className: string; label: string }[] = [
-    { edge: 'n', className: 'custom-dimension-frame__handle--n', label: 'Górna krawędź — wysokość' },
-    { edge: 's', className: 'custom-dimension-frame__handle--s', label: 'Dolna krawędź — wysokość' },
-    { edge: 'e', className: 'custom-dimension-frame__handle--e', label: 'Prawa krawędź — szerokość' },
-    { edge: 'w', className: 'custom-dimension-frame__handle--w', label: 'Lewa krawędź — szerokość' },
-  ];
-
-  return (
-    <div
-      className="custom-dimension-frame-area"
-      aria-label={`Podgląd kadru ${width} na ${height} pikseli`}
-    >
-      <div
-        className={`custom-dimension-frame${isDragging ? ' custom-dimension-frame--dragging' : ''}`}
-        style={{ width: visualWidth, height: visualHeight }}
-      >
-        <div className="custom-dimension-frame__inner" aria-hidden="true">
-          <span className="custom-dimension-frame__icon" aria-hidden="true">
-            🖼
-          </span>
-        </div>
-
-        {edges.map(({ edge, className, label }) => (
-          <div
-            key={edge}
-            role="slider"
-            aria-label={label}
-            aria-valuemin={MIN_DIMENSION}
-            aria-valuemax={MAX_DIMENSION}
-            aria-valuenow={edge === 'e' || edge === 'w' ? width : height}
-            aria-valuetext={
-              edge === 'e' || edge === 'w'
-                ? `${width} pikseli szerokości`
-                : `${height} pikseli wysokości`
-            }
-            className={`custom-dimension-frame__handle ${className}`}
-            onPointerDown={handlePointerDown(edge)}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export function DimensionPicker({ onSelect }: DimensionPickerProps) {
-  const [customWidth, setCustomWidth] = useState(800);
-  const [customHeight, setCustomHeight] = useState(600);
-  const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const resizeStartRef = useRef<{ width: number; height: number }>({ width: 800, height: 600 });
-
-  const handleResizeStart = useCallback(() => {
-    resizeStartRef.current = { width: customWidth, height: customHeight };
-    setIsDragging(true);
-  }, [customWidth, customHeight]);
-
-  const handleResize = useCallback((edge: FrameEdge, deltaX: number, deltaY: number) => {
-    const { width: startWidth, height: startHeight } = resizeStartRef.current;
-
-    if (edge === 'e') {
-      setCustomWidth(clamp(Math.round(startWidth + deltaX * DRAG_SENSITIVITY), MIN_DIMENSION, MAX_DIMENSION));
-    } else if (edge === 'w') {
-      setCustomWidth(clamp(Math.round(startWidth - deltaX * DRAG_SENSITIVITY), MIN_DIMENSION, MAX_DIMENSION));
-    } else if (edge === 's') {
-      setCustomHeight(clamp(Math.round(startHeight + deltaY * DRAG_SENSITIVITY), MIN_DIMENSION, MAX_DIMENSION));
-    } else if (edge === 'n') {
-      setCustomHeight(clamp(Math.round(startHeight - deltaY * DRAG_SENSITIVITY), MIN_DIMENSION, MAX_DIMENSION));
-    }
-
+  const handleRatioInput = (axis: 'w' | 'h') => (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = clamp(Math.round(Number(event.target.value) || MIN_RATIO), MIN_RATIO, MAX_RATIO);
+    const nextW = axis === 'w' ? value : ratioW;
+    const nextH = axis === 'h' ? value : ratioH;
+    setRatioW(nextW);
+    setRatioH(nextH);
+    setVisual(ratioToVisual(nextW, nextH));
     setSelectedLabel(null);
-  }, []);
+  };
 
-  const handleResizeEnd = useCallback(() => {
-    setIsDragging(false);
-  }, []);
-
-  const handlePresetSelect = (preset: CropDimensions) => {
+  const handlePresetSelect = (preset: CropAspectRatio) => {
     setSelectedLabel(preset.label);
     onSelect(preset);
   };
 
   const handleCustomSubmit = () => {
+    const label = formatAspectRatio(ratioW, ratioH);
     setSelectedLabel(null);
     onSelect({
-      width: customWidth,
-      height: customHeight,
-      label: `${customWidth}×${customHeight}`,
+      ratioW,
+      ratioH,
+      label: `Własny ${label}`,
     });
   };
 
   return (
     <section className="step-panel">
-      <h2>Krok 1: Wybierz wymiar kadru</h2>
+      <h2>Krok 1: Wybierz format kadru</h2>
       <p className="step-description">
-        Wybierz gotowy format lub podaj własny rozmiar wyjściowy dla całej sesji kadrowania.
+        Wybierz proporcje zdjęcia. Rozdzielczość każdego pliku zostaje zachowana — eksport bez
+        skalowania do sztywnych pikseli.
       </p>
 
-      <p className="preset-section-label">Gotowe formaty</p>
-      <div className="preset-grid" role="listbox" aria-label="Gotowe formaty kadru">
-        {DIMENSION_PRESETS.map((preset) => {
-          const hint = PRESET_HINTS[preset.label];
+      <p className="preset-section-label">Gotowe proporcje</p>
+      <div className="preset-grid" role="listbox" aria-label="Gotowe proporcje kadru">
+        {ASPECT_PRESETS.map((preset) => {
           const isSelected = selectedLabel === preset.label;
 
           return (
@@ -207,11 +181,10 @@ export function DimensionPicker({ onSelect }: DimensionPickerProps) {
               className={`preset-card${isSelected ? ' preset-card--selected' : ''}`}
               onClick={() => handlePresetSelect(preset)}
             >
-              <PresetShape width={preset.width} height={preset.height} />
-              <span className="preset-card__title">{hint?.title ?? preset.label}</span>
-              <span className="preset-card__ratio">{hint?.subtitle ?? preset.label}</span>
-              <span className="preset-card__size">
-                {preset.width} × {preset.height} px
+              <PresetShape ratioW={preset.ratioW} ratioH={preset.ratioH} />
+              <span className="preset-card__title">{preset.label}</span>
+              <span className="preset-card__ratio">
+                {formatAspectRatio(preset.ratioW, preset.ratioH)}
               </span>
             </button>
           );
@@ -219,30 +192,67 @@ export function DimensionPicker({ onSelect }: DimensionPickerProps) {
       </div>
 
       <div className="custom-dimensions">
-        <h3>Lub własny wymiar</h3>
+        <h3>Lub własna proporcja</h3>
         <p className="custom-dimensions__hint">
-          Chwyć krawędź i przeciągnij, aby zmienić wymiar ({MIN_DIMENSION}–{MAX_DIMENSION} px).
+          Złap narożnik ramki i rozciągnij ją do dowolnego kształtu — albo wpisz proporcję ręcznie.
         </p>
 
         <div className="custom-dimension-workspace">
-          <ResizableFrame
-            width={customWidth}
-            height={customHeight}
-            onResizeStart={handleResizeStart}
-            onResize={handleResize}
-            onResizeEnd={handleResizeEnd}
-            isDragging={isDragging}
-          />
+          <div
+            className="custom-dimension-frame-area"
+            aria-label={`Podgląd proporcji ${formatAspectRatio(ratioW, ratioH)}`}
+          >
+            <div
+              className={`custom-dimension-frame${isDragging ? ' custom-dimension-frame--dragging' : ''}`}
+              style={{ width: visual.width, height: visual.height }}
+            >
+              <div className="custom-dimension-frame__inner" aria-hidden="true">
+                <span className="custom-dimension-frame__ratio-badge">
+                  {formatAspectRatio(ratioW, ratioH)}
+                </span>
+              </div>
+
+              <div
+                role="slider"
+                aria-label="Narożnik ramki — rozciągnij, aby zmienić proporcje"
+                className="custom-dimension-frame__corner"
+                onPointerDown={handleCornerPointerDown}
+                onPointerMove={handleCornerPointerMove}
+                onPointerUp={handleCornerPointerUp}
+                onPointerCancel={handleCornerPointerUp}
+              />
+            </div>
+          </div>
         </div>
 
-        <p className="custom-dimension-display" aria-live="polite">
-          <span className="custom-dimension-display__value">
-            {customWidth} × {customHeight} px
+        <div className="custom-ratio-inputs">
+          <label className="custom-ratio-inputs__field">
+            <span>Szerokość</span>
+            <input
+              type="number"
+              min={MIN_RATIO}
+              max={MAX_RATIO}
+              value={ratioW}
+              onChange={handleRatioInput('w')}
+            />
+          </label>
+          <span className="custom-ratio-inputs__separator" aria-hidden="true">
+            :
           </span>
-        </p>
+          <label className="custom-ratio-inputs__field">
+            <span>Wysokość</span>
+            <input
+              type="number"
+              min={MIN_RATIO}
+              max={MAX_RATIO}
+              value={ratioH}
+              onChange={handleRatioInput('h')}
+            />
+          </label>
+        </div>
 
         <button type="button" className="primary-button custom-dimension-confirm" onClick={handleCustomSubmit}>
-          Użyj tego wymiaru
+          Użyj proporcji {formatAspectRatio(ratioW, ratioH)}
         </button>
       </div>
     </section>

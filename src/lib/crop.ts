@@ -93,10 +93,25 @@ export function computeInitialCrop(
   return { offsetX: 0, offsetY: 0, scale: 1 };
 }
 
+/** Rozmiar wyjściowy w px — natywna rozdzielczość wyciętego fragmentu (bez skalowania). */
+export function getOutputPixelSize(
+  imageWidth: number,
+  imageHeight: number,
+  aspect: Dimensions,
+  cropState: CropState,
+): Dimensions {
+  const clamped = clampCropState(imageWidth, imageHeight, aspect, cropState);
+  const rect = getCropRect(imageWidth, imageHeight, aspect, clamped);
+  return {
+    width: Math.max(1, Math.round(rect.width)),
+    height: Math.max(1, Math.round(rect.height)),
+  };
+}
+
 export function applyCropToCanvas(
   image: CanvasImageSource & { width?: number; height?: number },
   cropState: CropState,
-  target: Dimensions,
+  aspect: Dimensions,
 ): HTMLCanvasElement {
   const imageWidth =
     'naturalWidth' in image && image.naturalWidth
@@ -107,32 +122,24 @@ export function applyCropToCanvas(
       ? image.naturalHeight
       : (image.height ?? 0);
 
-  const clamped = clampCropState(imageWidth, imageHeight, target, cropState);
-  const rect = getCropRect(imageWidth, imageHeight, target, clamped);
+  const clamped = clampCropState(imageWidth, imageHeight, aspect, cropState);
+  const rect = getCropRect(imageWidth, imageHeight, aspect, clamped);
+
+  const outW = Math.max(1, Math.round(rect.width));
+  const outH = Math.max(1, Math.round(rect.height));
 
   const canvas = document.createElement('canvas');
-  canvas.width = target.width;
-  canvas.height = target.height;
+  canvas.width = outW;
+  canvas.height = outH;
 
   const ctx = canvas.getContext('2d');
   if (!ctx) {
     return canvas;
   }
 
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
+  ctx.imageSmoothingEnabled = false;
 
-  ctx.drawImage(
-    image,
-    rect.x,
-    rect.y,
-    rect.width,
-    rect.height,
-    0,
-    0,
-    target.width,
-    target.height,
-  );
+  ctx.drawImage(image, rect.x, rect.y, rect.width, rect.height, 0, 0, outW, outH);
 
   return canvas;
 }

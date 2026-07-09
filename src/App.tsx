@@ -11,7 +11,7 @@ const CropSession = lazy(() =>
 function App() {
   const {
     state,
-    setDimensions,
+    setAspectRatio,
     setFolder,
     goToStep,
     acceptCurrent,
@@ -26,27 +26,27 @@ function App() {
         <h1>Photo Cropper</h1>
         <p className="app-subtitle">Masowe kadrowanie zdjęć — 100% lokalnie w przeglądarce</p>
         <nav className="step-indicator" aria-label="Kroki sesji">
-          <span className={state.step === 'dimensions' ? 'active' : ''}>1. Wymiar</span>
+          <span className={state.step === 'dimensions' ? 'active' : ''}>1. Format</span>
           <span className={state.step === 'folder' ? 'active' : ''}>2. Folder</span>
           <span className={state.step === 'crop' ? 'active' : ''}>3. Kadrowanie</span>
         </nav>
       </header>
 
       <main className="app-main">
-        {state.step === 'dimensions' && <DimensionPicker onSelect={setDimensions} />}
+        {state.step === 'dimensions' && <DimensionPicker onSelect={setAspectRatio} />}
 
-        {state.step === 'folder' && state.dimensions && (
+        {state.step === 'folder' && state.aspectRatio && (
           <FolderPicker
-            dimensions={state.dimensions}
+            aspectRatio={state.aspectRatio}
             onSelect={setFolder}
             onBack={() => goToStep('dimensions')}
           />
         )}
 
-        {state.step === 'crop' && state.dimensions && state.directoryHandle && (
+        {state.step === 'crop' && state.aspectRatio && state.directoryHandle && (
           <Suspense fallback={<p className="step-description">Ładowanie narzędzi kadrowania…</p>}>
             <CropSession
-              dimensions={state.dimensions}
+              aspectRatio={state.aspectRatio}
               directoryHandle={state.directoryHandle}
               queue={state.queue}
               currentIndex={state.currentIndex}
