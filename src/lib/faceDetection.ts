@@ -6,7 +6,7 @@ import {
   type Dimensions,
 } from './crop.ts';
 
-const MEDIAPIPE_BASE = '/mediapipe/face_detection/';
+const MEDIAPIPE_BASE = `${import.meta.env.BASE_URL}mediapipe/face_detection/`;
 
 type FaceDetectionModule = typeof import('@mediapipe/face_detection');
 type FaceDetectionInstance = InstanceType<FaceDetectionModule['FaceDetection']>;
