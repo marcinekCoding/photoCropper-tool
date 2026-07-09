@@ -1,61 +1,128 @@
 # Photo Cropper
 
-Narzędzie webowe do masowego kadrowania zdjęć — działa w pełni lokalnie w przeglądarce (Chrome / Edge).
+Webowe narzędzie do szybkiego, masowego kadrowania zdjęć pod montaż wideo i szablony graficzne.
+Aplikacja działa lokalnie w przeglądarce (Chrome/Edge), bez wysyłania zdjęć do chmury.
 
-## Wymagania
+## TL;DR
+
+- Batch crop zdjęć w 3 krokach: wymiar -> folder -> kadrowanie
+- AI face detection (MediaPipe) do automatycznej propozycji kadru
+- Obsługa wielu twarzy + ostrzeżenie, gdy nie da się zmieścić wszystkich
+- Eksport do `cropped/` z zachowaniem nazw plików
+- Pełne przetwarzanie lokalne (privacy-first)
+
+## Dlaczego ten projekt
+
+Projekt powstał jako odpowiedź na realny problem: ręczne kadrowanie dużych paczek zdjęć pod montaż wideo i szablony graficzne jest czasochłonne i podatne na niespójność.
+
+Celem było zbudowanie narzędzia, które:
+- minimalizuje liczbę kliknięć,
+- zachowuje spójność kadrów,
+- daje kontrolę ręczną tam, gdzie automatyka nie wystarcza.
+
+## Kluczowe funkcje
+
+### 1) Wybór wymiaru (UX-first)
+- Graficzne karty presetów proporcji (Portret, Panorama, Kwadrat, Klasyczny, Story)
+- Własny wymiar przez interaktywną ramkę (drag krawędzi N/S/E/W)
+
+### 2) Tryb batch
+- Wybór folderu źródłowego
+- Kolejka zdjęć JPG/PNG/WebP
+- Szybki workflow zatwierdzania i przechodzenia dalej
+
+### 3) Dwupanelowy edytor kadru
+- Lewy panel: oryginał + przesuwalna ramka crop
+- Prawy panel: wynik końcowy na żywo
+- Synchronizacja paneli w czasie rzeczywistym
+- Zoom i pan + skróty klawiaturowe
+
+### 4) Face-aware auto-crop
+- Auto-centrowanie na twarzy (bez wymuszania skali)
+- Dla wielu twarzy: próba zmieszczenia wszystkich
+- Gdy to niemożliwe: żółta ramka ostrzegawcza
+
+### 5) Eksport i bezpieczeństwo danych
+- Zapis do `cropped/` w obrębie wybranego folderu
+- Te same nazwy plików
+- Cofnij i ponowny zapis = nadpisanie pliku (bez duplikatów)
+- 100% local processing
+
+## Stack technologiczny
+
+- Frontend: React + TypeScript + Vite
+- Computer Vision: MediaPipe Face Detection (WASM)
+- Obróbka obrazu: HTML Canvas
+- File I/O: File System Access API
+
+## Uruchomienie lokalne
+
+### Wymagania
 
 - Node.js 18+
 - Przeglądarka z obsługą [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API) (Chrome, Edge)
 
-## Uruchomienie
+### Start
 
 ```bash
 npm install
 npm run dev
 ```
 
-Aplikacja będzie dostępna pod adresem wyświetlonym w terminalu (domyślnie `http://localhost:5173`).
-
-## Build produkcyjny
+### Build produkcyjny
 
 ```bash
 npm run build
 npm run preview
 ```
 
-## Przepływ aplikacji
+## Przepływ użytkownika
 
-1. **Wymiar** — wybór presetu (300×400, 1920×1080, 1:1, 4:3, 9:16) lub własny rozmiar.
-2. **Folder** — wybór folderu źródłowego; wczytanie plików JPG, PNG, WebP.
-3. **Kadrowanie** — przegląd kolejki zdjęć z podglądem i zapisem do podfolderu `cropped/`.
+1. Wybór wymiaru (preset lub własny)
+2. Wybór folderu ze zdjęciami
+3. Dla każdego zdjęcia:
+   - auto-propozycja kadru,
+   - ręczna korekta (pan/zoom, przeciąganie ramki),
+   - zapis / pominięcie / cofnięcie
+4. Eksport do `cropped/`
 
-## Struktura projektu
+## Architektura (skrót)
 
-```
+```text
 src/
-├── types.ts              # Wspólne typy (CropDimensions, QueuedImage, SessionState)
-├── hooks/useSession.ts   # Stan sesji i nawigacja między krokami
 ├── components/
 │   ├── DimensionPicker.tsx
 │   ├── FolderPicker.tsx
-│   ├── CropSession.tsx   # Orkiestracja kolejki
-│   └── CropWorkspace/    # UI kadrowania (Agent 2)
-└── lib/
-    ├── crop.ts           # Logika kadru (Agent 2)
-    ├── faceDetection.ts  # Wykrywanie twarzy (Agent 3)
-    └── export.ts         # Eksport do podfolderu (Agent 3)
+│   ├── CropSession.tsx
+│   └── CropWorkspace/
+├── hooks/
+│   └── useSession.ts
+├── lib/
+│   ├── crop.ts
+│   ├── faceDetection.ts
+│   └── export.ts
+└── types.ts
 ```
 
-## Integracja dla agentów
+## Decyzje projektowe
 
-### Agent 2 — Kadrowanie (UI + crop math)
+- Offline-first: prywatność i brak kosztów backendu
+- Human-in-the-loop: AI proponuje, użytkownik zatwierdza
+- Spójność ponad "magiczne" auto: stałe proporcje, przewidywalne zachowanie
+- Czytelny UX: dwupanelowy podgląd i szybkie skróty
 
-- **`src/components/CropWorkspace/index.tsx`** — zaimplementuj dwupanelowy interfejs. Props: `CropWorkspaceProps`.
-- **`src/lib/crop.ts`** — obliczenia prostokąta kadru, podgląd na canvas.
+## Ograniczenia / TODO
 
-### Agent 3 — Twarze + eksport
+- Brak rekurencyjnego skanowania podfolderów
+- Brak PWA/service worker
+- Brak EXIF auto-rotate
+- Brak zapisanych presetów użytkownika
+- Brak trybu auto-accept batch
 
-- **`src/lib/faceDetection.ts`** — inicjalizacja modelu, `detectFaces`, `centerCropOnFace`.
-- **`src/lib/export.ts`** — zapis do `cropped/` w folderze źródłowym, upscale małych zdjęć.
+## Informacja o AI
 
-Wspólne typy eksportowane z `src/types.ts`.
+Projekt został zaprojektowany i rozwijany z wykorzystaniem narzędzi sztucznej inteligencji (AI), które wspierały implementację, testowanie i dokumentację.
+
+## Licencja
+
+Do uzupełnienia (np. MIT).
